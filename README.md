@@ -1,1 +1,1 @@
-# predictive_maintenance_for_software_applications
+# Predictive maintenance for software applications
