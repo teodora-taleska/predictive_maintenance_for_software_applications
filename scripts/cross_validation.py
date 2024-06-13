@@ -1,6 +1,7 @@
 from sklearn.model_selection import LeaveOneOut
-from scripts.evaluation_metrics import calculate_metrics
-from sklearn.model_selection import cross_validate, KFold
+from scripts.evaluation_metrics import calculate_metrics, calculate_r2
+from sklearn.model_selection import cross_validate
+from sklearn.metrics import make_scorer, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 
 
@@ -41,21 +42,28 @@ def loocv(X, y, model):
 
 
 def k_fold_cv(X, y, model, cv=6):
-    scorers = {
-        'mse': 'neg_mean_squared_error',
-        'mae': 'neg_mean_absolute_error',
-        'r2': 'r2'
+
+    scoring = {
+        'mse': make_scorer(mean_squared_error),
+        'mae': make_scorer(mean_absolute_error),
+        'r2': make_scorer(calculate_r2),
     }
 
-    cv_results = cross_validate(model, X, y, cv=cv, scoring=scorers)
+    cv_results = cross_validate(model, X, y, cv=cv, scoring=scoring)
 
-    mse = -np.mean(cv_results['test_mse'])
-    mae = -np.mean(cv_results['test_mae'])
-    r2 = np.mean(cv_results['test_r2'])
+    scorers = {
+        'mse': 'mean squared error',
+        'mae': 'mean absolute error',
+        'r2': 'r squared',
+    }
 
-    print(f"Mean R2: {r2:.4f}")
-    print(f"Mean MSE: {mse:.4f}")
-    print(f"RMSE: {np.sqrt(mse):.4f}")
-    print(f"Mean MAE: {mae:.4f}")
+    mse = 0
+    for scorer_name, scorer in scorers.items():
+        scores = cv_results['test_' + scorer_name]
+        mean_score = np.mean(scores)
+        if scorer_name == 'mse':
+            mse = mean_score
+        print(f"Mean {scorer_name.upper()}: {mean_score}")
+    print('RMSE', np.sqrt(mse))
 
 

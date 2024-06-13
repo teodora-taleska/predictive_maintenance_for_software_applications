@@ -21,6 +21,7 @@ def calculate_r2(y_true, y_pred):
 
     return r2
 
+
 def calculate_metrics(y_true, y_pred):
 
     """Calculate evaluation metrics: MSE, RMSE, MAE, R2."""
