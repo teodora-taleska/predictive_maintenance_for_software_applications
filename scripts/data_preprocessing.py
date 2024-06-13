@@ -15,7 +15,7 @@ def load_data():
     - y (pd.Series): Target variable.
     """
 
-    file_path = 'data/kc1-class-level-numericdefect.arff'
+    file_path = '../data/kc1-class-level-numericdefect.arff'
 
     # Load the ARFF file
     data, meta = arff.loadarff(file_path)
