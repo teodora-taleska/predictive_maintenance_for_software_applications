@@ -1,8 +1,9 @@
-from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import LeaveOneOut, KFold
 from scripts.evaluation_metrics import calculate_metrics, calculate_r2
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import make_scorer, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def loocv(X, y, model):
@@ -38,6 +39,23 @@ def loocv(X, y, model):
     print("Average RMSE (LOOCV):", avg_rmse_loocv)
     print("Average MAE (LOOCV):", avg_mae_loocv)
 
+    # Visualize predictions vs true values with different colors
+    plt.scatter(range(len(testing)), testing, color='blue', label='True Values')
+    plt.scatter(range(len(predictions)), predictions, color='red', label='Predicted Values')
+    plt.xlabel('Index')
+    plt.ylabel('NUMDEFECTS')
+    plt.title('Predicted vs True Values (LOOCV)')
+    plt.legend()
+    plt.show()
+
+    # Visualize residuals
+    residuals = np.array(testing) - np.array(predictions)
+    plt.hist(residuals, bins=20)
+    plt.xlabel('Residuals')
+    plt.ylabel('Frequency')
+    plt.title('Residuals Histogram')
+    plt.show()
+
 
 def k_fold_cv(X, y, model, cv=6):
     scoring = {
@@ -54,3 +72,30 @@ def k_fold_cv(X, y, model, cv=6):
 
     print('RMSE', np.sqrt(np.mean(cv_results['test_mse'])))
 
+    # Collect predictions for visualization
+    predictions = np.zeros(len(y))
+    kf = KFold(n_splits=cv)
+    for train_index, test_index in kf.split(X):
+        model.fit(X.iloc[train_index], y.iloc[train_index])
+        y_pred = model.predict(X.iloc[test_index])
+        predictions[test_index] = y_pred
+
+    # True values (provided y)
+    testing = y
+
+    # Visualize predictions vs true values with different colors
+    plt.scatter(range(len(testing)), testing, color='blue', label='True Values')
+    plt.scatter(range(len(predictions)), predictions, color='red', label='Predicted Values')
+    plt.xlabel('Index')
+    plt.ylabel('NUMDEFECTS')
+    plt.title(f'Predicted vs True Values ({cv}-Fold CV)')
+    plt.legend()
+    plt.show()
+
+    # Visualize residuals
+    residuals = np.array(testing) - np.array(predictions)
+    plt.hist(residuals, bins=20, color='purple')
+    plt.xlabel('Residuals')
+    plt.ylabel('Frequency')
+    plt.title('Residuals Histogram')
+    plt.show()

@@ -23,6 +23,10 @@ def load_data():
     # Convert ARFF data to a Pandas DataFrame
     df = pd.DataFrame(data)
 
+    # Print the number of duplicates before removing them
+    num_duplicates = df.duplicated().sum()
+    print(f"Number of duplicates: {num_duplicates}")
+
     # Remove duplicates
     df = df.drop_duplicates()
 
