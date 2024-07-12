@@ -1,5 +1,5 @@
-from sklearn.model_selection import LeaveOneOut, KFold
-from scripts.evaluation_metrics import calculate_metrics, calculate_r2
+from sklearn.model_selection import LeaveOneOut, KFold, GridSearchCV
+from scripts.evaluation_metrics import calculate_metrics
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import make_scorer, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
@@ -56,28 +56,38 @@ def loocv(X, y, model):
     plt.title('Residuals Histogram')
     plt.show()
 
+    return r_squared_loocv, avg_mse_loocv, avg_rmse_loocv, avg_mae_loocv
 
-def k_fold_cv(X, y, model, cv=6):
+
+def k_fold_cv(X, y, model, cv=6, param_grid=None):
     scoring = {
         'mse': make_scorer(mean_squared_error),
         'mae': make_scorer(mean_absolute_error),
         'r2': make_scorer(r2_score),
     }
 
-    cv_results = cross_validate(model, X, y, cv=cv, scoring=scoring)
+    if param_grid:
+        grid_search = GridSearchCV(model, param_grid, cv=cv, scoring='neg_mean_squared_error', n_jobs=-1, verbose=2)
+        grid_search.fit(X, y)
+        best_model = grid_search.best_estimator_
+        print("Best Parameters:", grid_search.best_params_)
+    else:
+        best_model = model
+
+    cv_results = cross_validate(best_model, X, y, cv=cv, scoring=scoring)
 
     for scorer_name in scoring.keys():
         mean_score = np.mean(cv_results['test_' + scorer_name])
         print(f"Mean {scorer_name.upper()}: {mean_score}")
 
-    print('RMSE', np.sqrt(np.mean(cv_results['test_mse'])))
+    print('RMSE:', np.sqrt(np.mean(cv_results['test_mse'])))
 
     # Collect predictions for visualization
     predictions = np.zeros(len(y))
     kf = KFold(n_splits=cv)
     for train_index, test_index in kf.split(X):
-        model.fit(X.iloc[train_index], y.iloc[train_index])
-        y_pred = model.predict(X.iloc[test_index])
+        best_model.fit(X.iloc[train_index], y.iloc[train_index])
+        y_pred = best_model.predict(X.iloc[test_index])
         predictions[test_index] = y_pred
 
     # True values (provided y)
@@ -99,3 +109,5 @@ def k_fold_cv(X, y, model, cv=6):
     plt.ylabel('Frequency')
     plt.title('Residuals Histogram')
     plt.show()
+
+    return cv_results
