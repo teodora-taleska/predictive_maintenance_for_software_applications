@@ -1,10 +1,9 @@
-from sklearn.model_selection import LeaveOneOut, KFold, GridSearchCV
 from scripts.evaluation_metrics import calculate_metrics
 from sklearn.model_selection import cross_validate
-from sklearn.metrics import make_scorer, mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import make_scorer, mean_squared_error, r2_score, mean_absolute_error
+from sklearn.model_selection import KFold, GridSearchCV, LeaveOneOut
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 def loocv(X, y, model):
     loo = LeaveOneOut()
@@ -111,3 +110,186 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
     plt.show()
 
     return cv_results
+
+
+def k_fold_cv_with_deviance(X, y, model, cv=6, param_grid=None):
+    """
+    Perform k-fold cross-validation and plot the deviance for a given model.
+
+    Parameters:
+    X (DataFrame): The input samples.
+    y (Series): The target values (class labels).
+    model: The model.
+    cv (int): Number of k-folds.
+    param_grid (dict): The parameter grid for hyperparameter tuning.
+    """
+
+    if param_grid:
+        grid_search = GridSearchCV(model, param_grid, cv=cv, scoring='neg_mean_absolute_error', n_jobs=-1, verbose=2)
+        grid_search.fit(X, y)
+        best_model = grid_search.best_estimator_
+        print("Best Parameters:", grid_search.best_params_)
+    else:
+        best_model = model
+
+    kf = KFold(n_splits=cv, shuffle=True, random_state=42)
+    n_estimators = best_model.get_params()['n_estimators']
+
+    train_deviance = np.zeros(n_estimators, dtype=np.float64)
+    test_deviance = np.zeros(n_estimators, dtype=np.float64)
+
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+        # Initialize a new model for each fold
+        model_fold = best_model.__class__(**best_model.get_params())
+        model_fold.fit(X_train, y_train)
+
+        # Collect predictions for each iteration
+        train_predictions = np.zeros((len(X_train), n_estimators))
+        test_predictions = np.zeros((len(X_test), n_estimators))
+
+        for i in range(n_estimators):
+            model_fold.n_estimators = i + 1
+            model_fold.fit(X_train, y_train)  # Fit model with the updated number of estimators
+
+            train_predictions[:, i] = model_fold.predict(X_train)
+            test_predictions[:, i] = model_fold.predict(X_test)
+
+        for i in range(n_estimators):
+            train_deviance[i] += mean_absolute_error(y_train, train_predictions[:, i])
+            test_deviance[i] += mean_absolute_error(y_test, test_predictions[:, i])
+
+    # Average deviance over all folds
+    train_deviance /= cv
+    test_deviance /= cv
+
+    # Plot deviance
+    fig = plt.figure(figsize=(10, 6))
+    plt.title("Deviance")
+    plt.plot(
+        np.arange(n_estimators) + 1,
+        train_deviance,
+        "b-",
+        label="Training Set Deviance",
+    )
+    plt.plot(
+        np.arange(n_estimators) + 1, test_deviance, "r-", label="Test Set Deviance"
+    )
+    plt.legend(loc="upper right")
+    plt.xlabel("Boosting Iterations")
+    plt.ylabel("Deviance")
+    fig.tight_layout()
+    plt.show()
+
+
+def k_fold_cv_with_deviance_gbr(X, y, model, cv=6, param_grid=None):
+    """
+    Perform k-fold cross-validation and plot the deviance for a Gradient Boosting Regressor.
+
+    Parameters:
+    X (DataFrame): The input samples.
+    y (Series): The target values (class labels).
+    model (GradientBoostingRegressor): The gradient boosting model.
+    cv (int): Number of k-folds.
+    param_grid (dict): The parameter grid for hyperparameter tuning.
+    """
+
+    if param_grid:
+        grid_search = GridSearchCV(model, param_grid, cv=cv, scoring='neg_mean_absolute_error', n_jobs=-1, verbose=2)
+        grid_search.fit(X, y)
+        best_model = grid_search.best_estimator_
+        print("Best Parameters:", grid_search.best_params_)
+    else:
+        best_model = model
+
+    kf = KFold(n_splits=cv, shuffle=True, random_state=42)
+    train_deviance = np.zeros((best_model.get_params()['n_estimators'],), dtype=np.float64)
+    test_deviance = np.zeros((best_model.get_params()['n_estimators'],), dtype=np.float64)
+
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+        best_model.fit(X_train, y_train)
+
+        for i, (y_train_pred, y_test_pred) in enumerate(zip(best_model.staged_predict(X_train), best_model.staged_predict(X_test))):
+            train_deviance[i] += mean_absolute_error(y_train, y_train_pred)
+            test_deviance[i] += mean_absolute_error(y_test, y_test_pred)
+
+    train_deviance /= cv
+    test_deviance /= cv
+
+    # Plot deviance
+    fig = plt.figure(figsize=(10, 6))
+    plt.title("Deviance")
+    plt.plot(
+        np.arange(best_model.get_params()['n_estimators']) + 1,
+        train_deviance,
+        "b-",
+        label="Training Set Deviance",
+    )
+    plt.plot(
+        np.arange(best_model.get_params()['n_estimators']) + 1, test_deviance, "r-", label="Test Set Deviance"
+    )
+    plt.legend(loc="upper right")
+    plt.xlabel("Boosting Iterations")
+    plt.ylabel("Deviance")
+    fig.tight_layout()
+    plt.show()
+
+
+def plot_feature_importance(X, model, y=None, n_repeats=10, top_n=15):
+    """
+    Plot feature importance for a trained model, including MDI and permutation importance.
+    Only shows the top `top_n` features.
+
+    Parameters:
+    X (DataFrame): The input samples.
+    model: The trained model.
+    y (Series, optional): The target values (required for permutation importance).
+    n_repeats (int): Number of repetitions for permutation importance.
+    top_n (int): Number of top features to display.
+    """
+
+    # Feature Importance (MDI)
+    feature_importance = model.feature_importances_
+    sorted_idx = np.argsort(feature_importance)
+
+    # Select top_n features
+    top_idx = sorted_idx[-top_n:]
+    top_features = np.array(X.columns)[top_idx]
+    top_importance = feature_importance[top_idx]
+
+    # Print numerical results for MDI
+    print("Feature Importance (MDI):")
+    for feature, importance in zip(top_features, top_importance):
+        print(f"{feature}: {importance:.4f}")
+
+    fig = plt.figure(figsize=(18, 6))
+
+    # Plot MDI Feature Importance
+    plt.subplot(1, 2, 1)
+    pos = np.arange(top_n) + 0.5
+    plt.barh(pos, top_importance, align="center")
+    plt.yticks(pos, top_features)
+    plt.title("Feature Importance (MDI)")
+
+    # if y is not None:
+    #     # Permutation Importance
+    #     result = permutation_importance(
+    #         model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=-1
+    #     )
+    #     top_importance_perm = result.importances[top_idx]
+    #
+    #     plt.subplot(1, 2, 2)
+    #     plt.boxplot(
+    #         top_importance_perm.T,
+    #         vert=False,
+    #         labels=top_features,
+    #     )
+    #     plt.title("Permutation Importance (test set)")
+
+    fig.tight_layout()
+    plt.show()
