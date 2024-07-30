@@ -31,7 +31,8 @@ def loocv(X, y, model):
     avg_mse_loocv = np.mean(mse_loocv)
     avg_mae_loocv = np.mean(mae_loocv)
     avg_rmse_loocv = np.sqrt(avg_mse_loocv)
-    r_squared_loocv = r2_score(predictions, testing)
+    # print("Predictions: ", predictions, "Testing values: ", testing)
+    r_squared_loocv = r2_score(testing, predictions)
 
     print("R squared (LOOCV):", r_squared_loocv)
     print("Average MSE (LOOCV):", avg_mse_loocv)
@@ -73,13 +74,8 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
     else:
         best_model = model
 
+    # For testing purposes - to compare results with the results of for loop below
     cv_results = cross_validate(best_model, X, y, cv=cv, scoring=scoring)
-
-    for scorer_name in scoring.keys():
-        mean_score = np.mean(cv_results['test_' + scorer_name])
-        print(f"Mean {scorer_name.upper()}: {mean_score}")
-
-    print('RMSE:', np.sqrt(np.mean(cv_results['test_mse'])))
 
     # Collect predictions for visualization
     predictions = np.zeros(len(y))
@@ -91,6 +87,16 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
 
     # True values (provided y)
     testing = y
+
+    # Calculate evaluation metrics
+    mae = mean_absolute_error(testing, predictions)
+    mse = mean_squared_error(testing, predictions)
+    rmse = np.sqrt(mse)
+    r = r2_score(testing, predictions)
+    print("R squared (CV):", r)
+    print("Average MSE (CV):", mse)
+    print("Average RMSE (CV):", rmse)
+    print("Average MAE (CV):", mae)
 
     # Visualize predictions vs true values with different colors
     plt.scatter(range(len(testing)), testing, color='blue', label='True Values')
