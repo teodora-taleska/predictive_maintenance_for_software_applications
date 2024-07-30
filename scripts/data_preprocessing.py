@@ -4,6 +4,8 @@ from scipy.io import arff
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
 from sklearn.impute import SimpleImputer
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def load_data():
@@ -54,6 +56,7 @@ def exclude_outliers(X, y, contamination=0.1, random_state=42):
     Returns:
     - X_filtered (pd.DataFrame): Feature matrix without outliers.
     - y_filtered (pd.Series): Target variable without outliers.
+    - outliers (np.array): Array indicating outliers (-1 for outliers, 1 for inliers).
     """
 
     model = IsolationForest(contamination=contamination, random_state=random_state)
@@ -70,8 +73,43 @@ def exclude_outliers(X, y, contamination=0.1, random_state=42):
     X_filtered = X.iloc[inlier_indices]
     y_filtered = y.iloc[inlier_indices]
 
-    return X_filtered, y_filtered
+    return X_filtered, y_filtered, outliers
 
+
+def display_outliers(X, outliers):
+    """
+    Display outliers in a DataFrame and analyze their values.
+
+    Parameters:
+    - X (pd.DataFrame): Feature matrix.
+    - outliers (np.array): Array indicating outliers (-1 for outliers, 1 for inliers).
+
+    Returns:
+    - outliers_df (pd.DataFrame): DataFrame containing the outliers.
+    """
+
+    # Identify outlier indices
+    outlier_indices = np.where(outliers == -1)[0]
+
+    # Extract outlier rows
+    outliers_df = X.iloc[outlier_indices]
+
+    # Display outliers
+    print("Outliers DataFrame:\n", outliers_df)
+
+    # Analyze the type of outliers
+    for column in outliers_df.columns:
+        print(f"\nAnalysis of outliers in column '{column}':")
+
+        # Plot the distribution of the outliers
+        plt.figure(figsize=(10, 5))
+        sns.histplot(outliers_df[column], kde=True)
+        plt.title(f"Distribution of Outliers in Column '{column}'")
+        plt.xlabel(column)
+        plt.ylabel('Frequency')
+        plt.show()
+
+    return outliers_df
 
 def scale_data(X):
     """
