@@ -1,8 +1,6 @@
 import numpy as np
-import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.metrics import make_scorer, mean_squared_error, r2_score, mean_absolute_error
-from scripts.cross_validation import loocv, k_fold_cv
+
 
 class BaselineModel(BaseEstimator, RegressorMixin):
     def __init__(self):

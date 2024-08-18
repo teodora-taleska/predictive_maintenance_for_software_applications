@@ -1,6 +1,5 @@
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 import numpy as np
-
 
 def calculate_r2(y_true, y_pred):
 

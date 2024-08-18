@@ -5,6 +5,7 @@ from sklearn.model_selection import KFold, GridSearchCV, LeaveOneOut
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def loocv(X, y, model):
     loo = LeaveOneOut()
     mse_loocv = []
@@ -60,11 +61,6 @@ def loocv(X, y, model):
 
 
 def k_fold_cv(X, y, model, cv=6, param_grid=None):
-    scoring = {
-        'mse': make_scorer(mean_squared_error),
-        'mae': make_scorer(mean_absolute_error),
-        'r2': make_scorer(r2_score),
-    }
 
     if param_grid:
         grid_search = GridSearchCV(model, param_grid, cv=cv, scoring='neg_mean_squared_error', n_jobs=-1, verbose=2)
@@ -74,19 +70,19 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
     else:
         best_model = model
 
-    # For testing purposes - to compare results with the results of for loop below
-    cv_results = cross_validate(best_model, X, y, cv=cv, scoring=scoring)
-
     # Collect predictions for visualization
     predictions = np.zeros(len(y))
     kf = KFold(n_splits=cv)
     for train_index, test_index in kf.split(X):
         best_model.fit(X.iloc[train_index], y.iloc[train_index])
         y_pred = best_model.predict(X.iloc[test_index])
+        print('ypred', y_pred)
         predictions[test_index] = y_pred
+        print('predictions', predictions)
 
     # True values (provided y)
     testing = y
+    print('testing', y)
 
     # Calculate evaluation metrics
     mae = mean_absolute_error(testing, predictions)
@@ -114,8 +110,6 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
     plt.ylabel('Frequency')
     plt.title('Residuals Histogram')
     plt.show()
-
-    return cv_results
 
 
 def k_fold_cv_with_deviance(X, y, model, cv=6, param_grid=None):
@@ -246,16 +240,14 @@ def k_fold_cv_with_deviance_gbr(X, y, model, cv=6, param_grid=None):
     plt.show()
 
 
-def plot_feature_importance(X, model, y=None, n_repeats=10, top_n=15):
+def plot_feature_importance(X, model, top_n=15):
     """
-    Plot feature importance for a trained model, including MDI and permutation importance.
+    Plot feature importance for a trained model, including MDI.
     Only shows the top `top_n` features.
 
     Parameters:
     X (DataFrame): The input samples.
     model: The trained model.
-    y (Series, optional): The target values (required for permutation importance).
-    n_repeats (int): Number of repetitions for permutation importance.
     top_n (int): Number of top features to display.
     """
 
@@ -281,21 +273,6 @@ def plot_feature_importance(X, model, y=None, n_repeats=10, top_n=15):
     plt.barh(pos, top_importance, align="center")
     plt.yticks(pos, top_features)
     plt.title("Feature Importance (MDI)")
-
-    # if y is not None:
-    #     # Permutation Importance
-    #     result = permutation_importance(
-    #         model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=-1
-    #     )
-    #     top_importance_perm = result.importances[top_idx]
-    #
-    #     plt.subplot(1, 2, 2)
-    #     plt.boxplot(
-    #         top_importance_perm.T,
-    #         vert=False,
-    #         labels=top_features,
-    #     )
-    #     plt.title("Permutation Importance (test set)")
 
     fig.tight_layout()
     plt.show()
