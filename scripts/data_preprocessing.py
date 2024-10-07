@@ -40,6 +40,9 @@ def load_data():
     y = df_imputed['NUMDEFECTS']
     X = df_imputed.drop('NUMDEFECTS', axis=1)
 
+    # Print the first 5 rows of the DataFrame to see the table
+    # print(df_imputed.head())
+
     return X, y
 
 

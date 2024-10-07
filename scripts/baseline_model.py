@@ -8,6 +8,8 @@ class BaselineModel(BaseEstimator, RegressorMixin):
 
     def fit(self, X, y):
         self.average_target = y.mean()
+        # print('average target', y, y.mean())
+        # print('average mean', y.mean())
         return self
 
     def predict(self, X):

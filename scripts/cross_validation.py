@@ -61,7 +61,7 @@ def loocv(X, y, model):
 
 
 def k_fold_cv(X, y, model, cv=6, param_grid=None):
-
+    # Hyperparameter tuning using GridSearchCV, if param_grid is provided
     if param_grid:
         grid_search = GridSearchCV(model, param_grid, cv=cv, scoring='neg_mean_squared_error', n_jobs=-1, verbose=2)
         grid_search.fit(X, y)
@@ -70,29 +70,49 @@ def k_fold_cv(X, y, model, cv=6, param_grid=None):
     else:
         best_model = model
 
-    # Collect predictions for visualization
-    predictions = np.zeros(len(y))
+    # Initialize variables to store metrics for each fold
+    mse_list, mae_list, rmse_list, r2_list = [], [], [], []
+
+    # Perform K-Fold Cross-Validation
     kf = KFold(n_splits=cv)
+    predictions = np.zeros(len(y))
+
     for train_index, test_index in kf.split(X):
+        # Train the model
         best_model.fit(X.iloc[train_index], y.iloc[train_index])
+
+        # Predict on the validation set
         y_pred = best_model.predict(X.iloc[test_index])
-        print('ypred', y_pred)
         predictions[test_index] = y_pred
-        print('predictions', predictions)
 
-    # True values (provided y)
+        # Calculate metrics for the current fold
+        fold_mse = mean_squared_error(y.iloc[test_index], y_pred)
+        fold_mae = mean_absolute_error(y.iloc[test_index], y_pred)
+        fold_rmse = np.sqrt(fold_mse)
+        fold_r2 = r2_score(y.iloc[test_index], y_pred)
+        # print('Model', fold_r2, y.iloc[test_index], y_pred)
+        # print('Model mean', np.mean(y.iloc[test_index]))
+
+        # Append metrics to their respective lists
+        mse_list.append(fold_mse)
+        mae_list.append(fold_mae)
+        rmse_list.append(fold_rmse)
+        r2_list.append(fold_r2)
+
     testing = y
-    print('testing', y)
 
-    # Calculate evaluation metrics
-    mae = mean_absolute_error(testing, predictions)
-    mse = mean_squared_error(testing, predictions)
-    rmse = np.sqrt(mse)
-    r = r2_score(testing, predictions)
-    print("R squared (CV):", r)
-    print("Average MSE (CV):", mse)
-    print("Average RMSE (CV):", rmse)
-    print("Average MAE (CV):", mae)
+    # Calculate average metrics across all folds
+    avg_mse = np.mean(mse_list)
+    avg_mae = np.mean(mae_list)
+    avg_rmse = np.mean(rmse_list)
+    avg_r2 = np.mean(r2_list)
+
+    # Print the average metrics
+    print("Average MSE (CV):", avg_mse)
+    print("Average RMSE (CV):", avg_rmse)
+    print("Average MAE (CV):", avg_mae)
+    print("Average R squared (CV):", avg_r2)
+
 
     # Visualize predictions vs true values with different colors
     plt.scatter(range(len(testing)), testing, color='blue', label='True Values')
